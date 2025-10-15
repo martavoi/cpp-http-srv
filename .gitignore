@@ -53,6 +53,9 @@ CPackSourceConfig.cmake
 # Uncomment if you don't want to share VS Code settings:
 # .vscode/
 
+# Cache directories
+.cache/
+
 # OS specific
 .DS_Store
 .DS_Store?

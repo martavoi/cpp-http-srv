@@ -25,7 +25,7 @@ int main() {
     acceptor.bind(asio::ip::tcp::endpoint(asio::ip::address_v4::any(), 8080));
     acceptor.listen();
 
-    asio::co_spawn(io_ctx, [&acceptor]() -> asio::awaitable<void> {
+    asio::co_spawn(io_ctx, [acceptor = std::move(acceptor)]() mutable -> asio::awaitable<void> {
         for (;;)
         {
             auto [ec, socket] = co_await acceptor.async_accept(asio::as_tuple(asio::use_awaitable));
@@ -48,21 +48,33 @@ int main() {
                     if (ec_read)
                     {
                         // End of stream is normal when client closes connection
-                        if (ec_read != beast::http::error::end_of_stream)
+                        // Operation canceled happens on timeout - also normal
+                        if (ec_read != beast::http::error::end_of_stream && 
+                            ec_read != asio::error::operation_aborted)
                         {
                             BOOST_LOG_TRIVIAL(error) << "Error reading request: " << ec_read.message();
                         }
                         break;
                     }
 
-                    BOOST_LOG_TRIVIAL(info) << "Request received from " << stream.socket().remote_endpoint() << " with " << bytes_read << " bytes";
-
-                    // response handling
+                    BOOST_LOG_TRIVIAL(info) << "Request " << req.method() << " " << req.target() << " received from " << stream.socket().remote_endpoint() << " with " << bytes_read << " bytes";
+                    
+                    // Build response
                     beast::http::response<beast::http::string_body> res;
-                    res.result(beast::http::status::ok);
-                    res.set(beast::http::field::content_type, "text/plain");
-                    res.body() = "Hello, World!\n";
                     res.keep_alive(req.keep_alive());
+                    
+                    if (req.method() == beast::http::verb::get && req.target() == "/")
+                    {
+                        res.result(beast::http::status::ok);
+                        res.set(beast::http::field::content_type, "text/plain");
+                        res.body() = "Hello, World!\n";
+                    }
+                    else
+                    {
+                        res.result(beast::http::status::not_found);
+                        res.set(beast::http::field::content_type, "text/plain");
+                        res.body() = "Not Found\n";
+                    }
                     res.prepare_payload();
 
                     auto [ec_write, bytes_written] = co_await beast::http::async_write(stream, res, asio::as_tuple(asio::use_awaitable));

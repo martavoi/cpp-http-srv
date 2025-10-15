@@ -1,0 +1,28 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Version control
+.git/
+.gitignore
+
+# Documentation
+*.md
+LICENSE
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
